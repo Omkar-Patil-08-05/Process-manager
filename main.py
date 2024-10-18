@@ -12,13 +12,20 @@ def list_processes():
 
     current_user = psutil.Process().username()
 
+    time.sleep(0.1)
+
     for process in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "exe", "username",  "status"]):
         try:
             name = process.info["name"]
             exe_path = process.info["exe"] if process.info["exe"] else ""
             username = process.info.get("username", "")
+            
             if process.info["status"] == psutil.STATUS_RUNNING and username == current_user and not any(exe_path.startswith(path) for path in system_paths):
-                print(f"\033[94m{process.info['pid']:<10}\033[0m\033[95m{process.info['name']:<50}\033[0m{process.info['cpu_percent']:<15}\033[96m{(process.info['memory_percent']*psutil.virtual_memory()[0])/10**8:<15} MB\033[0m")
+                
+                cpu_usage = process.cpu_percent(interval=0.1)
+                memory_usage_mb = (process.info['memory_percent'] * psutil.virtual_memory().total) / 10**6
+
+                print(f"\033[94m{process.info['pid']:<10}\033[0m\033[95m{name:<50}\033[0m{cpu_usage:<15.2f}\033[96m{memory_usage_mb:<15.2f} MB\033[0m")
 
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue 
@@ -26,7 +33,7 @@ def list_processes():
 def kill_process(pid):
     try:
         process = psutil.Process(pid)
-        print(f"Terminating process {pid} ({process.name()})...");
+        print(f"Terminating process {pid} ({process.name()})...")
         process.terminate()
         process.wait(timeout=3)
         print(f"Process {pid} ({process.name()}) has been terminated.")
